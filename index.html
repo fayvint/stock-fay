@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Management System</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Custom Tailwind Config for Theme -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb', // Blue-600
+                        primaryHover: '#1d4ed8', // Blue-700
+                        bgLight: '#f8fafc',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            min-width: 250px;
+            padding: 16px;
+            border-radius: 8px;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out forwards;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background-color: #10b981; }
+        .toast-error { background-color: #ef4444; }
+        .toast-info { background-color: #3b82f6; }
+    </style>
+</head>
+<body class="text-gray-900 h-screen w-screen overflow-hidden flex selection:bg-primary selection:text-white">
+
+    <!-- AUTHENTICATION VIEW -->
+    <div id="auth-view" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100 hidden">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden fade-in border border-gray-100">
+            <!-- Login Form -->
+            <div id="login-section" class="p-8">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-blue-100 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="ph ph-package text-3xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900">Welcome Back</h2>
+                    <p class="text-gray-500 text-sm mt-1">Sign in to manage your stock</p>
+                </div>
+                <form id="login-form" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        <input type="text" id="login-username" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none" placeholder="Enter username">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="login-password" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none" placeholder="Enter password">
+                    </div>
+                    <button type="submit" class="w-full bg-primary hover:bg-primaryHover text-white font-semibold py-3 rounded-lg transition shadow-md hover:shadow-lg">
+                        Sign In
+                    </button>
+                </form>
+                <div class="mt-6 text-center text-sm text-gray-600">
+                    Don't have an account? <button id="show-register" class="text-primary font-semibold hover:underline">Register here</button>
+                </div>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-section" class="p-8 hidden">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-blue-100 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="ph ph-user-plus text-3xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900">Create Account</h2>
+                    <p class="text-gray-500 text-sm mt-1">Join to start managing stock</p>
+                </div>
+                <form id="register-form" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        <input type="text" id="reg-username" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none" placeholder="Choose a unique username">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="reg-password" required minlength="6" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none" placeholder="Min. 6 characters">
+                    </div>
+                    <button type="submit" class="w-full bg-gray-900 hover:bg-black text-white font-semibold py-3 rounded-lg transition shadow-md hover:shadow-lg">
+                        Register Account
+                    </button>
+                </form>
+                <div class="mt-6 text-center text-sm text-gray-600">
+                    Already have an account? <button id="show-login" class="text-primary font-semibold hover:underline">Sign In</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION VIEW -->
+    <div id="app-view" class="flex w-full h-full hidden bg-bgLight">
+        
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-20 hidden md:flex">
+            <!-- Logo & App Name -->
+            <div class="h-20 flex items-center px-6 border-b border-gray-100">
+                <img id="sidebar-logo" src="https://placehold.co/100x100/2563eb/white?text=Logo" alt="Logo" class="w-10 h-10 rounded-lg object-cover mr-3 border border-gray-100">
+                <h1 id="sidebar-app-name" class="font-bold text-lg text-gray-800 truncate">StockApp</h1>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+                <button data-target="dashboard" class="nav-btn w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl text-primary bg-blue-50 transition">
+                    <i class="ph ph-squares-four text-xl mr-3"></i> Dashboard
+                </button>
+                <button data-target="inventory" class="nav-btn w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition">
+                    <i class="ph ph-package text-xl mr-3"></i> Inventory
+                </button>
+                <button data-target="settings" class="nav-btn w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition">
+                    <i class="ph ph-gear text-xl mr-3"></i> Settings
+                </button>
+            </nav>
+
+            <!-- User & Logout -->
+            <div class="p-4 border-t border-gray-100">
+                <div class="flex items-center justify-between px-2">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold uppercase" id="user-avatar">U</div>
+                        <span id="current-username-display" class="ml-3 text-sm font-medium text-gray-700">User</span>
+                    </div>
+                    <button id="logout-btn" class="text-gray-400 hover:text-red-500 transition p-2 rounded-lg hover:bg-red-50" title="Logout">
+                        <i class="ph ph-sign-out text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+            <!-- Mobile Header -->
+            <header class="md:hidden h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20">
+                <div class="flex items-center">
+                    <img id="mobile-logo" src="https://placehold.co/100x100/2563eb/white?text=Logo" alt="Logo" class="w-8 h-8 rounded-md object-cover mr-2">
+                    <span id="mobile-app-name" class="font-bold text-gray-800">StockApp</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="mobile-menu-btn" class="p-2 text-gray-600 rounded-lg hover:bg-gray-100">
+                        <i class="ph ph-list text-2xl"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Container -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 relative w-full">
+                
+                <!-- VIEWS -->
+                
+                <!-- 1. Dashboard View -->
+                <div id="view-dashboard" class="view-section fade-in">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-gray-900">Dashboard Overview</h2>
+                        <p class="text-gray-500">Track your inventory and asset values.</p>
+                    </div>
+
+                    <!-- Stat Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 mb-1">Total Products</p>
+                                <h3 id="stat-total-products" class="text-3xl font-bold text-gray-900">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-50 text-primary rounded-xl flex items-center justify-center">
+                                <i class="ph ph-list-numbers text-2xl"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 mb-1">Total Asset Value</p>
+                                <h3 id="stat-total-value" class="text-2xl font-bold text-gray-900">Rp 0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
+                                <i class="ph ph-money text-2xl"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 mb-1">Low Stock Items (< 5)</p>
+                                <h3 id="stat-low-stock" class="text-3xl font-bold text-red-600">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center">
+                                <i class="ph ph-warning-circle text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Area -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 class="font-bold text-gray-800 mb-4">Stock Distribution by Category</h3>
+                            <div class="relative h-64 w-full">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 class="font-bold text-gray-800 mb-4">Asset Value by Category</h3>
+                            <div class="relative h-64 w-full">
+                                <canvas id="valueChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Inventory View -->
+                <div id="view-inventory" class="view-section hidden fade-in">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">Product Inventory</h2>
+                            <p class="text-gray-500 text-sm">Manage products, stock levels, and pricing.</p>
+                        </div>
+                        <button id="btn-add-product" class="bg-primary hover:bg-primaryHover text-white px-5 py-2.5 rounded-lg font-medium transition shadow-sm flex items-center gap-2 justify-center">
+                            <i class="ph ph-plus-circle text-lg"></i> Add Product
+                        </button>
+                    </div>
+
+                    <!-- Filters & Search -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col lg:flex-row gap-4">
+                        <div class="flex-1 relative">
+                            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                            <input type="text" id="search-input" placeholder="Search product name..." class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition text-sm">
+                        </div>
+                        <div class="flex gap-3 overflow-x-auto pb-1 lg:pb-0">
+                            <select id="filter-category" class="px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-primary outline-none bg-white min-w-[140px]">
+                                <option value="All">All Categories</option>
+                                <option value="Marketplace">Marketplace</option>
+                                <option value="Offline Store">Offline Store</option>
+                                <option value="Event">Event</option>
+                            </select>
+                            <select id="sort-by" class="px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-primary outline-none bg-white min-w-[140px]">
+                                <option value="newest">Newest Added</option>
+                                <option value="price-asc">Price: Low to High</option>
+                                <option value="price-desc">Price: High to Low</option>
+                                <option value="stock-asc">Stock: Low to High</option>
+                                <option value="stock-desc">Stock: High to Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Products Grid -->
+                    <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-10">
+                        <!-- Dynamic content injected by JS -->
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div id="empty-state" class="hidden flex-col items-center justify-center py-20 text-center">
+                        <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
+                            <i class="ph ph-package text-5xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">No products found</h3>
+                        <p class="text-gray-500 max-w-sm">Try adjusting your search or filters, or add a new product to your inventory.</p>
+                    </div>
+                </div>
+
+                <!-- 3. Settings View -->
+                <div id="view-settings" class="view-section hidden fade-in max-w-2xl">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-gray-900">App Settings</h2>
+                        <p class="text-gray-500">Customize your application appearance.</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Application Name</label>
+                            <input type="text" id="setting-app-name" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none" placeholder="e.g. Stock Management">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Application Logo</label>
+                            <div class="flex items-center gap-4">
+                                <img id="setting-logo-preview" src="https://placehold.co/100x100/2563eb/white?text=Logo" alt="Preview" class="w-16 h-16 rounded-lg object-cover border border-gray-200 shadow-sm">
+                                <label class="cursor-pointer bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
+                                    Upload Logo
+                                    <input type="file" id="setting-logo-upload" accept="image/*" class="hidden">
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Recommended size: 100x100px. Image will be stored locally.</p>
+                        </div>
+
+                        <div class="pt-4 border-t border-gray-100">
+                            <button id="btn-save-settings" class="bg-primary hover:bg-primaryHover text-white px-6 py-2.5 rounded-lg font-medium transition shadow-sm">
+                                Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- Add/Edit Product Modal -->
+    <div id="product-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm hidden p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] fade-in">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 id="modal-title" class="text-lg font-bold text-gray-900">Add New Product</h3>
+                <button id="btn-close-modal" class="text-gray-400 hover:text-gray-600 transition p-1">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+                <form id="product-form" class="space-y-5">
+                    <input type="hidden" id="product-id">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+                            <input type="text" id="prod-name" required class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                            <select id="prod-category" required class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none bg-white">
+                                <option value="Marketplace">Marketplace</option>
+                                <option value="Offline Store">Offline Store</option>
+                                <option value="Event">Event</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Total Stock *</label>
+                            <input type="number" id="prod-stock" required min="0" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                            <input type="text" id="prod-size" placeholder="e.g. XL, 42, All Size" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                            <input type="text" id="prod-color" placeholder="e.g. Red, Black" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Price (Rp) *</label>
+                            <input type="number" id="prod-price" required min="0" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition outline-none">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+                            <div class="flex items-center gap-3">
+                                <div id="prod-img-preview" class="w-12 h-12 rounded bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center text-gray-400">
+                                    <i class="ph ph-image text-xl"></i>
+                                </div>
+                                <label class="cursor-pointer bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
+                                    Choose Image
+                                    <input type="file" id="prod-image" accept="image/*" class="hidden">
+                                </label>
+                                <button type="button" id="btn-remove-img" class="text-red-500 text-sm hidden hover:underline">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Discount Section -->
+                    <div class="border border-gray-200 rounded-xl p-4 bg-gray-50 mt-2">
+                        <h4 class="font-semibold text-gray-800 text-sm mb-3 flex items-center"><i class="ph ph-tag mr-2 text-primary"></i> Discount Settings (Optional)</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Discount Code</label>
+                                <input type="text" id="prod-disc-code" placeholder="e.g. SUMMER10" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-primary outline-none text-sm uppercase">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Discount Type</label>
+                                <select id="prod-disc-type" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-primary outline-none text-sm bg-white">
+                                    <option value="none">None</option>
+                                    <option value="percent">Percentage (%)</option>
+                                    <option value="fixed">Fixed Amount (Rp)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Discount Value</label>
+                                <input type="number" id="prod-disc-value" min="0" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-primary outline-none text-sm" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
+                <button type="button" id="btn-cancel-modal" class="px-4 py-2 rounded-lg text-gray-600 font-medium hover:bg-gray-200 transition">Cancel</button>
+                <button type="button" id="btn-save-product" class="bg-primary hover:bg-primaryHover text-white px-6 py-2 rounded-lg font-medium transition shadow-sm">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discount Application Modal (For viewing discounted price in stock control) -->
+    <div id="check-discount-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm hidden p-4">
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-xl flex flex-col fade-in overflow-hidden">
+            <div class="bg-primary p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold">Apply Discount Code</h3>
+                <button id="btn-close-disc-modal" class="text-white hover:text-gray-200 transition p-1"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="p-5 text-center">
+                <p id="disc-modal-prod-name" class="font-medium text-gray-800 mb-1">Product Name</p>
+                <p class="text-sm text-gray-500 mb-4">Original: <span id="disc-modal-original-price" class="font-semibold line-through">Rp 0</span></p>
+                
+                <input type="hidden" id="disc-modal-prod-id">
+                <input type="text" id="disc-input-code" placeholder="Enter discount code" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-primary text-center uppercase outline-none mb-3">
+                <button id="btn-validate-discount" class="w-full bg-gray-900 hover:bg-black text-white py-2.5 rounded-lg font-medium transition">Validate Code</button>
+                
+                <div id="disc-result" class="mt-4 p-3 rounded-lg hidden">
+                    <!-- Result injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // === STATE MANAGEMENT (localStorage) ===
+        const STORAGE_KEYS = {
+            USERS: 'stockApp_users',
+            CURRENT_USER: 'stockApp_currentUser',
+            PRODUCTS: 'stockApp_products',
+            SETTINGS: 'stockApp_settings'
+        };
+
+        // Default Data
+        const DEFAULT_USER = { username: 'stockfay', password: btoa('060301') }; // Basic encoding to prevent plain text visual 
+        const DEFAULT_SETTINGS = {
+            appName: 'StockApp',
+            logoUrl: 'https://placehold.co/100x100/2563eb/white?text=SA'
+        };
+
+        let state = {
+            users: [],
+            currentUser: null,
+            products: [],
+            settings: { ...DEFAULT_SETTINGS },
+            base64ImgTemp: null
+        };
+
+        let charts = {
+            category: null,
+            value: null
+        };
+
+        // === UTILITIES ===
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+        };
+
+        const showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            let icon = 'ph-info';
+            if(type === 'success') icon = 'ph-check-circle';
+            if(type === 'error') icon = 'ph-warning-circle';
+
+            toast.innerHTML = `<i class="ph ${icon} text-2xl"></i> <span class="font-medium text-sm">${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+
+        const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+        // Calculate Discounted Price
+        const getDiscountedPrice = (price, discType, discVal) => {
+            if(discType === 'percent') return Math.max(0, price - (price * (discVal / 100)));
+            if(discType === 'fixed') return Math.max(0, price - discVal);
+            return price;
+        };
+
+        // Image Resizer (to prevent localStorage quota limit)
+        const resizeImage = (file, callback) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 300;
+                    const MAX_HEIGHT = 300;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    callback(canvas.toDataURL('image/jpeg', 0.8)); // Reduce quality slightly
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        // === INITIALIZATION & DATA LOADING ===
+        const loadData = () => {
+            // Load Users
+            const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+            if (storedUsers) {
+                state.users = JSON.parse(storedUsers);
+            } else {
+                state.users = [DEFAULT_USER];
+                localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(state.users));
+            }
+
+            // Load Session
+            state.currentUser = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+
+            // Load Products
+            const storedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+            if (storedProducts) state.products = JSON.parse(storedProducts);
+
+            // Load Settings
+            const storedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+            if (storedSettings) state.settings = JSON.parse(storedSettings);
+            else state.settings = { ...DEFAULT_SETTINGS };
+
+            applySettings();
+        };
+
+        const saveData = (key, data) => {
+            localStorage.setItem(key, JSON.stringify(data));
+        };
+
+        // === AUTHENTICATION LOGIC ===
+        const initAuth = () => {
+            const authView = document.getElementById('auth-view');
+            const appView = document.getElementById('app-view');
+
+            if (state.currentUser) {
+                authView.classList.add('hidden');
+                appView.classList.remove('hidden');
+                document.getElementById('current-username-display').textContent = state.currentUser;
+                document.getElementById('user-avatar').textContent = state.currentUser.charAt(0);
+                
+                // Load App Data
+                updateDashboard();
+                renderInventory();
+            } else {
+                authView.classList.remove('hidden');
+                appView.classList.add('hidden');
+            }
+        };
+
+        // Login Submit
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value;
+            
+            const user = state.users.find(usr => usr.username === u && atob(usr.password) === p);
+            
+            if (user) {
+                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, user.username);
+                state.currentUser = user.username;
+                document.getElementById('login-form').reset();
+                showToast('Login successful', 'success');
+                initAuth();
+            } else {
+                showToast('Invalid username or password', 'error');
+            }
+        });
+
+        // Register Submit
+        document.getElementById('register-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('reg-username').value.trim();
+            const p = document.getElementById('reg-password').value;
+
+            if (state.users.some(usr => usr.username === u)) {
+                showToast('Username already exists!', 'error');
+                return;
+            }
+
+            if (p.length < 6) {
+                showToast('Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            state.users.push({ username: u, password: btoa(p) });
+            saveData(STORAGE_KEYS.USERS, state.users);
+            
+            showToast('Registration successful! Please login.', 'success');
+            document.getElementById('register-form').reset();
+            toggleAuthSection('login');
+        });
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            state.currentUser = null;
+            showToast('Logged out successfully', 'info');
+            initAuth();
+        });
+
+        // Toggle Login/Register UI
+        const toggleAuthSection = (section) => {
+            const loginSec = document.getElementById('login-section');
+            const regSec = document.getElementById('register-section');
+            if (section === 'register') {
+                loginSec.classList.add('hidden');
+                regSec.classList.remove('hidden');
+            } else {
+                regSec.classList.add('hidden');
+                loginSec.classList.remove('hidden');
+            }
+        };
+        document.getElementById('show-register').addEventListener('click', () => toggleAuthSection('register'));
+        document.getElementById('show-login').addEventListener('click', () => toggleAuthSection('login'));
+
+        // === NAVIGATION & UI LOGIC ===
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Update active state
+                document.querySelectorAll('.nav-btn').forEach(b => {
+                    b.classList.remove('text-primary', 'bg-blue-50');
+                    b.classList.add('text-gray-600');
+                });
+                const targetBtn = e.currentTarget;
+                targetBtn.classList.remove('text-gray-600', 'hover:bg-gray-50');
+                targetBtn.classList.add('text-primary', 'bg-blue-50');
+
+                // Switch Views
+                const targetId = targetBtn.getAttribute('data-target');
+                document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
+                document.getElementById(`view-${targetId}`).classList.remove('hidden');
+
+                if (targetId === 'dashboard') updateDashboard();
+                if (targetId === 'inventory') renderInventory();
+                if (targetId === 'settings') loadSettingsForm();
+                
+                // Close mobile menu if open
+                const sidebar = document.querySelector('aside');
+                if(!sidebar.classList.contains('hidden') && window.innerWidth < 768) {
+                    sidebar.classList.add('hidden');
+                }
+            });
+        });
+
+        // Mobile Menu Toggle
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            const sidebar = document.querySelector('aside');
+            sidebar.classList.toggle('hidden');
+            if (!sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('absolute', 'inset-y-0', 'left-0', 'shadow-2xl');
+            }
+        });
+
+        // Settings Logic
+        const applySettings = () => {
+            document.getElementById('sidebar-app-name').textContent = state.settings.appName;
+            document.getElementById('mobile-app-name').textContent = state.settings.appName;
+            document.title = state.settings.appName;
+            
+            if(state.settings.logoUrl) {
+                document.getElementById('sidebar-logo').src = state.settings.logoUrl;
+                document.getElementById('mobile-logo').src = state.settings.logoUrl;
+            }
+        };
+
+        const loadSettingsForm = () => {
+            document.getElementById('setting-app-name').value = state.settings.appName;
+            if(state.settings.logoUrl) {
+                document.getElementById('setting-logo-preview').src = state.settings.logoUrl;
+            }
+        };
+
+        document.getElementById('setting-logo-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                resizeImage(file, (base64) => {
+                    document.getElementById('setting-logo-preview').src = base64;
+                    // Temp hold until save
+                    document.getElementById('setting-logo-preview').dataset.newBase64 = base64;
+                });
+            }
+        });
+
+        document.getElementById('btn-save-settings').addEventListener('click', () => {
+            const newName = document.getElementById('setting-app-name').value.trim();
+            if (newName) state.settings.appName = newName;
+            
+            const newLogo = document.getElementById('setting-logo-preview').dataset.newBase64;
+            if (newLogo) state.settings.logoUrl = newLogo;
+
+            saveData(STORAGE_KEYS.SETTINGS, state.settings);
+            applySettings();
+            showToast('Settings saved successfully', 'success');
+        });
+
+        // === DASHBOARD LOGIC ===
+        const updateDashboard = () => {
+            const totalProducts = state.products.length;
+            
+            // Calculate total asset (Price * Stock)
+            const totalAssetValue = state.products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+            
+            // Low stock
+            const lowStockCount = state.products.filter(p => p.stock < 5).length;
+
+            document.getElementById('stat-total-products').textContent = totalProducts;
+            document.getElementById('stat-total-value').textContent = formatRupiah(totalAssetValue);
+            document.getElementById('stat-low-stock').textContent = lowStockCount;
+
+            renderCharts();
+        };
+
+        const renderCharts = () => {
+            // Data grouping by category
+            const categories = ['Marketplace', 'Offline Store', 'Event'];
+            const stockData = [0, 0, 0];
+            const valueData = [0, 0, 0];
+
+            state.products.forEach(p => {
+                const index = categories.indexOf(p.category);
+                if (index !== -1) {
+                    stockData[index] += p.stock;
+                    valueData[index] += (p.price * p.stock);
+                }
+            });
+
+            // Destroy existing charts to prevent overlap
+            if (charts.category) charts.category.destroy();
+            if (charts.value) charts.value.destroy();
+
+            // Chart Colors
+            const bgColors = ['rgba(37, 99, 235, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)'];
+            const borderColors = ['#2563eb', '#10b981', '#f59e0b'];
+
+            // Category Stock Chart (Pie)
+            const ctxCat = document.getElementById('categoryChart').getContext('2d');
+            charts.category = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        data: stockData,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // Asset Value Chart (Bar)
+            const ctxVal = document.getElementById('valueChart').getContext('2d');
+            charts.value = new Chart(ctxVal, {
+                type: 'bar',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        label: 'Total Asset Value (Rp)',
+                        data: valueData,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        };
+
+        // === INVENTORY LOGIC ===
+        
+        const getFilterSortSettings = () => {
+            return {
+                search: document.getElementById('search-input').value.toLowerCase(),
+                category: document.getElementById('filter-category').value,
+                sortBy: document.getElementById('sort-by').value
+            };
+        };
+
+        const renderInventory = () => {
+            const grid = document.getElementById('products-grid');
+            const emptyState = document.getElementById('empty-state');
+            const filters = getFilterSortSettings();
+
+            // Apply Filters
+            let filtered = state.products.filter(p => {
+                const matchSearch = p.name.toLowerCase().includes(filters.search);
+                const matchCat = filters.category === 'All' || p.category === filters.category;
+                return matchSearch && matchCat;
+            });
+
+            // Apply Sort
+            filtered.sort((a, b) => {
+                switch(filters.sortBy) {
+                    case 'price-asc': return a.price - b.price;
+                    case 'price-desc': return b.price - a.price;
+                    case 'stock-asc': return a.stock - b.stock;
+                    case 'stock-desc': return b.stock - a.stock;
+                    default: return b.createdAt - a.createdAt; // newest
+                }
+            });
+
+            grid.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                grid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            emptyState.classList.remove('flex');
+
+            filtered.forEach(product => {
+                const isDiscounted = product.discountType !== 'none' && product.discountValue > 0;
+                let priceHtml = `<div class="text-lg font-bold text-gray-900">${formatRupiah(product.price)}</div>`;
+                
+                // Color badges for categories
+                let catColor = 'bg-blue-100 text-blue-800';
+                if(product.category === 'Offline Store') catColor = 'bg-green-100 text-green-800';
+                if(product.category === 'Event') catColor = 'bg-purple-100 text-purple-800';
+
+                // Image handling
+                const imgSource = product.image || 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image';
+
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition flex flex-col group';
+                card.innerHTML = `
+                    <div class="h-48 overflow-hidden relative border-b border-gray-100 bg-gray-50 flex items-center justify-center">
+                        <img src="${imgSource}" alt="${product.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <span class="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${catColor} shadow-sm backdrop-blur-md bg-opacity-90">${product.category}</span>
+                        ${isDiscounted ? `<span class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow-sm flex items-center"><i class="ph ph-tag mr-1"></i> Promo</span>` : ''}
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-gray-900 text-lg leading-tight truncate pr-2" title="${product.name}">${product.name}</h3>
+                        </div>
+                        
+                        <div class="text-sm text-gray-500 mb-4 flex gap-3">
+                            ${product.size ? `<span class="flex items-center gap-1"><i class="ph ph-ruler"></i> ${product.size}</span>` : ''}
+                            ${product.color ? `<span class="flex items-center gap-1"><i class="ph ph-palette"></i> ${product.color}</span>` : ''}
+                        </div>
+
+                        <div class="mt-auto">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <p class="text-xs text-gray-500 mb-0.5">Price</p>
+                                    ${priceHtml}
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-gray-500 mb-0.5">Stock</p>
+                                    <div class="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-100">
+                                        <button class="btn-stock-dec w-7 h-7 rounded bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 flex items-center justify-center transition" data-id="${product.id}"><i class="ph ph-minus"></i></button>
+                                        <span class="font-bold w-6 text-center ${product.stock < 5 ? 'text-red-500' : 'text-gray-900'}">${product.stock}</span>
+                                        <button class="btn-stock-inc w-7 h-7 rounded bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 flex items-center justify-center transition" data-id="${product.id}"><i class="ph ph-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
+                                <button class="btn-edit col-span-1 py-2 text-sm font-medium text-primary bg-blue-50 rounded-lg hover:bg-blue-100 transition" data-id="${product.id}">Edit</button>
+                                <button class="btn-check-disc col-span-1 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition" data-id="${product.id}" title="Check Discount">Promo</button>
+                                <button class="btn-delete col-span-1 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition" data-id="${product.id}">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            attachInventoryEvents();
+        };
+
+        // Filtering & Sorting Events
+        document.getElementById('search-input').addEventListener('input', renderInventory);
+        document.getElementById('filter-category').addEventListener('change', renderInventory);
+        document.getElementById('sort-by').addEventListener('change', renderInventory);
+
+        const attachInventoryEvents = () => {
+            // Stock Control
+            document.querySelectorAll('.btn-stock-dec').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    updateStock(id, -1);
+                });
+            });
+            document.querySelectorAll('.btn-stock-inc').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    updateStock(id, 1);
+                });
+            });
+
+            // Edit / Delete / Promo
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.addEventListener('click', (e) => openProductModal(e.currentTarget.dataset.id));
+            });
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    if(confirm('Are you sure you want to delete this product?')) {
+                        deleteProduct(e.currentTarget.dataset.id);
+                    }
+                });
+            });
+            document.querySelectorAll('.btn-check-disc').forEach(btn => {
+                btn.addEventListener('click', (e) => openDiscountCheckModal(e.currentTarget.dataset.id));
+            });
+        };
+
+        const updateStock = (id, delta) => {
+            const product = state.products.find(p => p.id === id);
+            if(product) {
+                const newStock = product.stock + delta;
+                if(newStock >= 0) {
+                    product.stock = newStock;
+                    saveData(STORAGE_KEYS.PRODUCTS, state.products);
+                    renderInventory(); // Re-render grid
+                } else {
+                    showToast('Stock cannot go below 0', 'error');
+                }
+            }
+        };
+
+        const deleteProduct = (id) => {
+            state.products = state.products.filter(p => p.id !== id);
+            saveData(STORAGE_KEYS.PRODUCTS, state.products);
+            renderInventory();
+            showToast('Product deleted', 'success');
+        };
+
+        // === PRODUCT MODAL LOGIC ===
+        const modal = document.getElementById('product-modal');
+        const form = document.getElementById('product-form');
+
+        // Form elements
+        const idInput = document.getElementById('product-id');
+        const nameInput = document.getElementById('prod-name');
+        const catInput = document.getElementById('prod-category');
+        const stockInput = document.getElementById('prod-stock');
+        const sizeInput = document.getElementById('prod-size');
+        const colorInput = document.getElementById('prod-color');
+        const priceInput = document.getElementById('prod-price');
+        
+        const discTypeInput = document.getElementById('prod-disc-type');
+        const discValInput = document.getElementById('prod-disc-value');
+        const discCodeInput = document.getElementById('prod-disc-code');
+        
+        const imgInput = document.getElementById('prod-image');
+        const imgPreview = document.getElementById('prod-img-preview');
+        const btnRemoveImg = document.getElementById('btn-remove-img');
+
+        document.getElementById('btn-add-product').addEventListener('click', () => openProductModal());
+        document.getElementById('btn-close-modal').addEventListener('click', () => modal.classList.add('hidden'));
+        document.getElementById('btn-cancel-modal').addEventListener('click', () => modal.classList.add('hidden'));
+
+        // Handle Discount Type Change
+        discTypeInput.addEventListener('change', (e) => {
+            if (e.target.value === 'none') {
+                discValInput.disabled = true;
+                discValInput.value = '';
+                discValInput.required = false;
+            } else {
+                discValInput.disabled = false;
+                discValInput.required = true;
+            }
+        });
+
+        // Handle Image Selection
+        imgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                resizeImage(file, (base64) => {
+                    state.base64ImgTemp = base64;
+                    imgPreview.innerHTML = `<img src="${base64}" class="w-full h-full object-cover">`;
+                    btnRemoveImg.classList.remove('hidden');
+                });
+            }
+        });
+
+        btnRemoveImg.addEventListener('click', () => {
+            state.base64ImgTemp = null;
+            imgInput.value = '';
+            imgPreview.innerHTML = `<i class="ph ph-image text-xl"></i>`;
+            btnRemoveImg.classList.add('hidden');
+        });
+
+        const openProductModal = (id = null) => {
+            form.reset();
+            state.base64ImgTemp = null;
+            imgPreview.innerHTML = `<i class="ph ph-image text-xl"></i>`;
+            btnRemoveImg.classList.add('hidden');
+            discValInput.disabled = true;
+
+            if (id) {
+                // Edit Mode
+                document.getElementById('modal-title').textContent = 'Edit Product';
+                const p = state.products.find(x => x.id === id);
+                if (p) {
+                    idInput.value = p.id;
+                    nameInput.value = p.name;
+                    catInput.value = p.category;
+                    stockInput.value = p.stock;
+                    sizeInput.value = p.size || '';
+                    colorInput.value = p.color || '';
+                    priceInput.value = p.price;
+                    
+                    discTypeInput.value = p.discountType || 'none';
+                    discCodeInput.value = p.discountCode || '';
+                    
+                    if (p.discountType !== 'none') {
+                        discValInput.disabled = false;
+                        discValInput.value = p.discountValue || '';
+                    }
+
+                    if (p.image) {
+                        state.base64ImgTemp = p.image;
+                        imgPreview.innerHTML = `<img src="${p.image}" class="w-full h-full object-cover">`;
+                        btnRemoveImg.classList.remove('hidden');
+                    }
+                }
+            } else {
+                // Add Mode
+                document.getElementById('modal-title').textContent = 'Add New Product';
+                idInput.value = '';
+            }
+            modal.classList.remove('hidden');
+        };
+
+        // Save Product Logic
+        document.getElementById('btn-save-product').addEventListener('click', () => {
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const isEdit = idInput.value !== '';
+            const newProduct = {
+                id: isEdit ? idInput.value : generateId(),
+                createdAt: isEdit ? state.products.find(p=>p.id === idInput.value).createdAt : Date.now(),
+                name: nameInput.value.trim(),
+                category: catInput.value,
+                stock: parseInt(stockInput.value, 10),
+                size: sizeInput.value.trim(),
+                color: colorInput.value.trim(),
+                price: parseFloat(priceInput.value),
+                discountType: discTypeInput.value,
+                discountValue: parseFloat(discValInput.value) || 0,
+                discountCode: discCodeInput.value.trim().toUpperCase(),
+                image: state.base64ImgTemp
+            };
+
+            if (isEdit) {
+                const idx = state.products.findIndex(p => p.id === newProduct.id);
+                state.products[idx] = newProduct;
+                showToast('Product updated successfully', 'success');
+            } else {
+                state.products.push(newProduct);
+                showToast('Product added successfully', 'success');
+            }
+
+            saveData(STORAGE_KEYS.PRODUCTS, state.products);
+            renderInventory();
+            updateDashboard(); // Update counts
+            modal.classList.add('hidden');
+        });
+
+        // === DISCOUNT VALIDATION MODAL LOGIC ===
+        const discModal = document.getElementById('check-discount-modal');
+        const discInput = document.getElementById('disc-input-code');
+        const discResult = document.getElementById('disc-result');
+        const btnCloseDisc = document.getElementById('btn-close-disc-modal');
+
+        const openDiscountCheckModal = (id) => {
+            const p = state.products.find(x => x.id === id);
+            if (!p) return;
+
+            document.getElementById('disc-modal-prod-id').value = id;
+            document.getElementById('disc-modal-prod-name').textContent = p.name;
+            document.getElementById('disc-modal-original-price').textContent = formatRupiah(p.price);
+            
+            discInput.value = '';
+            discResult.className = 'mt-4 p-3 rounded-lg hidden';
+            discResult.innerHTML = '';
+            
+            discModal.classList.remove('hidden');
+            setTimeout(() => discInput.focus(), 100);
+        };
+
+        btnCloseDisc.addEventListener('click', () => discModal.classList.add('hidden'));
+        
+        // Close modals on outside click
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.add('hidden');
+            if (e.target === discModal) discModal.classList.add('hidden');
+        });
+
+        document.getElementById('btn-validate-discount').addEventListener('click', () => {
+            const id = document.getElementById('disc-modal-prod-id').value;
+            const codeInput = discInput.value.trim().toUpperCase();
+            const p = state.products.find(x => x.id === id);
+            
+            discResult.classList.remove('hidden');
+            
+            if (!p || p.discountType === 'none' || !p.discountCode) {
+                discResult.className = 'mt-4 p-3 rounded-lg bg-red-50 border border-red-100 text-red-700 text-sm';
+                discResult.innerHTML = '<i class="ph ph-x-circle mr-1"></i> No active promo for this product.';
+                return;
+            }
+
+            if (codeInput === p.discountCode) {
+                const discountedPrice = getDiscountedPrice(p.price, p.discountType, p.discountValue);
+                discResult.className = 'mt-4 p-3 rounded-lg bg-green-50 border border-green-100 text-green-800 text-sm fade-in';
+                discResult.innerHTML = `
+                    <div class="flex items-center justify-center gap-2 mb-1"><i class="ph ph-check-circle text-lg"></i> <strong>Code Applied!</strong></div>
+                    <div class="text-xl font-bold mt-2">${formatRupiah(discountedPrice)}</div>
+                    <div class="text-xs text-green-600 mt-1">You save ${formatRupiah(p.price - discountedPrice)}</div>
+                `;
+            } else {
+                discResult.className = 'mt-4 p-3 rounded-lg bg-red-50 border border-red-100 text-red-700 text-sm fade-in';
+                discResult.innerHTML = '<i class="ph ph-warning-circle mr-1"></i> Invalid discount code.';
+            }
+        });
+
+
+        // === BOOTSTRAP APP ===
+        window.onload = () => {
+            loadData();
+            initAuth();
+        };
+
+    </script>
+</body>
+</html>
